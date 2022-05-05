@@ -83,27 +83,49 @@ model.add(keras.layers.Dense(1))
 # Compile the model using the standard 'adam' optimizer and the mean squared error or 'mse' loss function for regression.
 model.compile(optimizer='adam', loss="mse", metrics=["mae"])
 # Train the model
-history = model.fit(x_train, y_train, epochs=2000, batch_size=64,
+history = model.fit(x_train, y_train, epochs=500, batch_size=64,
                     validation_data=(x_validate, y_validate))
 
 # Save the model to disk
 model.save(MODEL_TF)
 
+# Convert the model to the TensorFlow Lite format with quantization
+def representative_dataset():
+  for i in range(500):
+    yield([x_train[i].reshape(1, 1)])
 
+# Convert the model to the TensorFlow Lite format without quantization
+converter = tf.lite.TFLiteConverter.from_saved_model(MODEL_TF)
+model_no_quant_tflite = converter.convert()
+
+# Save the model to disk
+open(MODEL_NO_QUANT_TFLITE, "wb").write(model_no_quant_tflite)
+# Set the optimization flag.
+converter.optimizations = [tf.lite.Optimize.DEFAULT]
+# Enforce integer only quantization
+converter.target_spec.supported_ops = [tf.lite.OpsSet.TFLITE_BUILTINS_INT8]
+converter.inference_input_type = tf.int8
+converter.inference_output_type = tf.int8
+# Provide a representative dataset to ensure we quantize correctly.
+converter.representative_dataset = representative_dataset
+model_tflite = converter.convert()
+
+# Save the model to disk
+open(MODEL_TFLITE, "wb").write(model_tflite)
 
 # Calculate and print the loss on our test dataset
-test_loss, test_mae = model.evaluate(x_test, y_test)
+# test_loss, test_mae = model.evaluate(x_test, y_test)
 
 # Make predictions based on our test dataset
-y_test_pred = model.predict(x_test)
+# y_test_pred = model.predict(x_test)
 
 # Graph the predictions against the actual values
-plt.clf()
-plt.title('Comparison of predictions and actual values')
-plt.plot(x_test, y_test, 'b.', label='Actual values')
-plt.plot(x_test, y_test_pred, 'r.', label='TF predicted')
-plt.legend()
-plt.show()
+# plt.clf()
+# plt.title('Comparison of predictions and actual values')
+# plt.plot(x_test, y_test, 'b.', label='Actual values')
+# plt.plot(x_test, y_test_pred, 'r.', label='TF predicted')
+# plt.legend()
+# plt.show()
 
 
 
